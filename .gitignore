@@ -1,0 +1,52 @@
+# Binary
+notion
+notion.exe
+notion-cli
+!npm/bin/notion
+!npm/bin/notion.cmd
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test
+coverage.out
+
+# Agent skill install dirs (created by npx skills add)
+.adal/
+.agent/
+.agents/
+.augment/
+.claude/
+.cline/
+.codebuddy/
+.commandcode/
+.continue/
+.crush/
+.cursor/
+.factory/
+.goose/
+.iflow/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.vibe/
+.windsurf/
+.zencoder/
