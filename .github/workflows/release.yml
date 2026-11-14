@@ -7,55 +7,22 @@ on:
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Pre-flight — verify required secrets
-        env:
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          missing=0
-          check() {
-            if [ -z "$2" ]; then
-              echo "::error::Required secret $1 is empty or not set"
-              missing=1
-            else
-              echo "✓ $1 present (${#2} chars)"
-            fi
-          }
-          check HOMEBREW_TAP_TOKEN "$HOMEBREW_TAP_TOKEN"
-          check NPM_TOKEN "$NPM_TOKEN"
-          if [ $missing -eq 1 ]; then
-            echo "::error::Aborting release — fix secrets in repo settings before retrying."
-            exit 1
-          fi
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: stable
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+          go-version: "1.24.x"
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
@@ -65,45 +32,3 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Publish to npm
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          cd npm
-          # Sync version from git tag
-          node -e "const p=require('./package.json'); p.version='${VERSION}'; require('fs').writeFileSync('package.json', JSON.stringify(p,null,2)+'\n')"
-          # Copy LICENSE and README from repo root
-          cp ../LICENSE . 2>/dev/null || true
-          cp ../README.md . 2>/dev/null || true
-          # Pre-flight: verify auth works before publishing
-          echo "--- npm whoami ---"
-          npm whoami
-          echo "--- npm publish --dry-run ---"
-          npm publish --access public --dry-run
-          echo "--- npm publish ---"
-          npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Verify npm publish succeeded
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          echo "Waiting for npm registry to propagate..."
-          for i in 1 2 3 4 5 6; do
-            sleep 10
-            published=$(npm view @4ier/notion-cli@${VERSION} version 2>/dev/null || true)
-            if [ "$published" = "${VERSION}" ]; then
-              echo "✓ @4ier/notion-cli@${VERSION} is live on npm"
-              exit 0
-            fi
-            echo "attempt $i: not yet visible, retrying..."
-          done
-          echo "::error::npm publish appears to have failed — @4ier/notion-cli@${VERSION} not visible after 60s"
-          exit 1
